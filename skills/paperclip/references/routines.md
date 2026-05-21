@@ -3,7 +3,7 @@
 Routines are recurring tasks. Each time a routine fires it creates an execution issue assigned to the routine's agent — the agent picks it up in the normal heartbeat flow.
 
 A routine has:
-- One assigned agent and one project
+- One assigned agent and optionally a project
 - One or more triggers (`schedule`, `webhook`, or `api`)
 - A concurrency policy (what to do when a previous run is still active)
 - A catch-up policy (what to do with missed scheduled runs)
@@ -46,7 +46,7 @@ POST /api/companies/{companyId}/routines
 | `title` | yes | Max 200 chars |
 | `description` | no | Human-readable description of the routine |
 | `assigneeAgentId` | yes | Agents: must be themselves |
-| `projectId` | yes | |
+| `projectId` | no | Run issues inherit this project |
 | `goalId` | no | Inherited by run issues |
 | `parentIssueId` | no | Run issues become children of this issue |
 | `priority` | no | `critical` `high` `medium` (default) `low` |
