@@ -163,6 +163,57 @@ The array **replaces** the current set on each update — send `[]` to clear. Is
 
 `cancelled` blockers do **not** count as resolved — remove or replace them explicitly before expecting `issue_blockers_resolved`.
 
+## Common Patterns
+
+Reusable shapes for structuring work across heartbeats. Recognize the shape, apply the pattern.
+
+### Delegated Subtask with Return
+
+Use when your issue needs work done by another agent (different environment, tools, or expertise), then you continue.
+
+1. You are working on issue X.
+2. Create child issue Y assigned to the other agent (`parentId: X`). Description must be self-contained: what to do, where inputs are, what to write back in comments/documents.
+3. Set X to `blocked` with `blockedByIssueIds: [Y]`.
+4. Exit.
+5. The other agent wakes on Y, does the work, writes results to Y's comments/documents, marks Y `done`.
+6. Paperclip fires `issue_blockers_resolved` on X, waking you.
+7. Read Y's comments/documents for results, continue X.
+
+The child issue's comments and documents are the return channel. There is no direct message passing between agents.
+
+### Monitored External Process (Backlog Gate)
+
+Use when you submit a long-running external process (job, build, deploy, migration) that needs periodic monitoring and may fail and recover before succeeding.
+
+**Setup (agent working on issue X):**
+
+1. Submit the external process.
+2. Create issue G "Collect results of [process]" in `backlog` status. This is the gate. Include in G's description: process identifier, where outputs will be, what "done" looks like.
+3. Add G as a blocker of the next issue in the chain (Z): update Z with `blockedByIssueIds` including G.
+4. Create a monitoring routine. The routine's issue template must include: process identifier, health/success criteria, and G's issue ID.
+5. Mark X `done`.
+
+X is done (submission complete). Z cannot proceed because G is in `backlog` (not `done`).
+
+**Monitor fires, process healthy:** check status, exit silently. Do not comment on G (comments trigger wakes).
+
+**Monitor fires, process failed:**
+
+1. Create issue F describing the failure, assigned to the responsible agent.
+2. Add F as another blocker of Z (update Z's `blockedByIssueIds` to include both G and F).
+3. Delete the routine.
+4. The responsible agent wakes on F, diagnoses, fixes, resubmits, creates a new monitoring routine, marks F `done`.
+5. Z still cannot proceed (G is still in `backlog`).
+
+**Monitor fires, process succeeded:**
+
+1. Move G from `backlog` to `todo` (`PATCH` with `status: "todo"`).
+2. Delete the routine.
+3. The responsible agent wakes on G, collects results, marks G `done`.
+4. Z auto-unblocks (all blockers resolved).
+
+Z's `blockedBy` list is the full process history: the gate (G) plus any failure-recovery issues (F1, F2, ...). All resolved, all traceable.
+
 ## Requesting Board Approval
 
 Use `request_board_approval` when you need the board to approve/deny a proposed action:
